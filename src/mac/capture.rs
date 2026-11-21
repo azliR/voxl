@@ -259,7 +259,12 @@ impl Capturer {
             self.last_check = Instant::now();
             // Resolution changed (System Settings, another display arrangement).
             let b = unsafe { CGDisplayBounds(self.geometry.display) };
-            if b.size != self.geometry.bounds.size
+            if super::virtual_display::id() == Some(self.geometry.display)
+                && !super::physical_displays().is_empty()
+            {
+                log::info!("a display was connected; leaving the virtual display");
+                self.rebuild = true;
+            } else if b.size != self.geometry.bounds.size
                 || super::capture_size(self.geometry.display) != (self.width, self.height)
             {
                 log::info!("display changed; restarting capture");

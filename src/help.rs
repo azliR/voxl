@@ -74,6 +74,9 @@ Desktop (this Mac's screen):
                                 within the budget)
   --max-capture-pixels          pixel budget for the automatic scale
                                 (default 4096000)
+  --virtual-display             size of the display voxl creates while no
+                                display is connected, or off (default
+                                1920x1080)
   --enable-clipboard            true, in, out or false (default true)
   --audio-enabled               system audio (default true)
   --audio-bitrate               Opus bitrate (default 128000)

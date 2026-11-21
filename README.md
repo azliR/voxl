@@ -257,6 +257,14 @@ apps that should hear you.
 | `--microphone-device`  | first loopback device found         | output device (name or prefix) to play the browser microphone into                     |
 | `--resize-scale`       | the capture scale                   | so a viewer's window maps to the same number of points on the Mac                      |
 | `--show-cursor`        | `false` (`true` with `--read-only`) | include the host cursor in the video stream (for viewers/observers)                    |
+| `--virtual-display`    | `1920x1080`                         | size of the display voxl creates while no display is connected, or `off`               |
+
+When no display is connected (a Mac mini whose monitor is switched off, or one running
+headless), voxl creates a virtual display of `--virtual-display` size and streams it, so
+viewers stay connected. When a monitor is connected again, voxl removes the virtual
+display and streams the monitor. The virtual display uses CoreGraphics' private
+`CGVirtualDisplay` API, which a macOS update could change: if it fails, voxl logs why and
+exits as it did before.
 
 The other flags work as on Linux; `--audio-device-name`, `--microphone-fifo` and the
 rounded-corner flags don't apply.

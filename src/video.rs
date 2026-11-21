@@ -111,13 +111,21 @@ pub fn spawn(
                 });
                 continue;
             }
+            #[cfg(target_os = "macos")]
+            if follow_display(&cfg, &hub, &mut screen) {
+                hub.resize_req.lock().take();
+            }
             let req = hub.resize_req.lock().take();
             if let (Some(s), Some((w, h))) = (screen.as_mut(), req) {
                 if let Err(e) = s.resize(w, h) {
                     log::warn!("resize to {w}x{h} failed: {e}");
                 }
             }
-            p = match build(&cfg, &hub) {
+            #[cfg(target_os = "macos")]
+            let rebuilt = rebuild(&cfg, &hub, &mut screen);
+            #[cfg(not(target_os = "macos"))]
+            let rebuilt = build(&cfg, &hub);
+            p = match rebuilt {
                 Ok(p) => p,
                 Err(e) => {
                     log::error!("video restart failed: {e}");
@@ -138,23 +146,8 @@ fn switch_display(
 ) -> Result<Pipeline, String> {
     let previous = crate::mac::display();
     let mut open = |id| {
-        // Best effort: an app-only mode change is undone by macOS when voxl exits.
-        if let Some(mut old) = screen.take() {
-            if let Err(e) = old.restore() {
-                log::warn!("could not restore the previous display mode: {e}");
-            }
-        }
         crate::mac::select_display(id)?;
-        *screen = if cfg.enable_resize {
-            crate::screen::Screen::open(None)
-                .inspect_err(|e| {
-                    log::warn!("dynamic resolution unavailable: {e}");
-                })
-                .ok()
-        } else {
-            None
-        };
-        *hub.resize_max.lock() = screen.as_ref().map(|s| s.max());
+        reopen_screen(cfg, hub, screen);
         build(cfg, hub)
     };
     let attempt = request
@@ -168,6 +161,75 @@ fn switch_display(
     })?;
     *hub.input.lock() = Some(request.sender);
     Ok(pipeline)
+}
+
+/// Dynamic resolution for the display now selected, after the previous one's mode is
+/// put back (best effort: an app-only mode change is undone by macOS when voxl exits).
+#[cfg(target_os = "macos")]
+fn reopen_screen(cfg: &VideoConfig, hub: &Arc<Hub>, screen: &mut Option<crate::screen::Screen>) {
+    if let Some(mut old) = screen.take() {
+        if let Err(e) = old.restore() {
+            log::warn!("could not restore the previous display mode: {e}");
+        }
+    }
+    *screen = if cfg.enable_resize {
+        crate::screen::Screen::open(None)
+            .inspect_err(|e| {
+                log::warn!("dynamic resolution unavailable: {e}");
+            })
+            .ok()
+    } else {
+        None
+    };
+    *hub.resize_max.lock() = screen.as_ref().map(|s| s.max());
+}
+
+/// Moves capture to a display that exists when the captured one went away (monitor
+/// switched off) or a physical one replaced the virtual display. Returns whether the
+/// captured display changed; a failure is logged and left to the rebuild to report.
+#[cfg(target_os = "macos")]
+fn follow_display(
+    cfg: &VideoConfig,
+    hub: &Arc<Hub>,
+    screen: &mut Option<crate::screen::Screen>,
+) -> bool {
+    match crate::mac::recover_display() {
+        Ok(true) => {
+            reopen_screen(cfg, hub, screen);
+            true
+        }
+        Ok(false) => false,
+        Err(e) => {
+            log::error!("{e}");
+            false
+        }
+    }
+}
+
+/// Attempts at restarting capture while displays are being reconfigured: a display
+/// can be listed by CoreGraphics a moment before ScreenCaptureKit can capture it.
+#[cfg(target_os = "macos")]
+const REBUILD_ATTEMPTS: u32 = 20;
+
+#[cfg(target_os = "macos")]
+fn rebuild(
+    cfg: &VideoConfig,
+    hub: &Arc<Hub>,
+    screen: &mut Option<crate::screen::Screen>,
+) -> Result<Pipeline, String> {
+    let mut attempt = 1;
+    loop {
+        match build(cfg, hub) {
+            Ok(p) => return Ok(p),
+            Err(e) if attempt < REBUILD_ATTEMPTS => {
+                log::warn!("capture restart failed ({e}); retrying");
+                attempt += 1;
+                std::thread::sleep(Duration::from_millis(500));
+                follow_display(cfg, hub, screen);
+            }
+            Err(e) => return Err(e),
+        }
+    }
 }
 
 fn build(cfg: &VideoConfig, hub: &Arc<Hub>) -> Result<Pipeline, String> {

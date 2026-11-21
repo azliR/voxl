@@ -8,6 +8,7 @@
 //! - audio: system audio from ScreenCaptureKit
 //! - screen: dynamic resolution by switching display modes
 //! - mic: browser microphone played into a loopback output device
+//! - virtual_display: a stand-in display while no screen is attached
 
 pub mod audio;
 pub mod capture;
@@ -17,6 +18,7 @@ pub mod input;
 pub mod mic;
 pub mod screen;
 pub mod stream;
+pub mod virtual_display;
 
 use ffi::*;
 use parking_lot::Mutex;
@@ -51,6 +53,8 @@ struct Settings {
     max_pixels: f64,
     fps: u32,
     show_cursor: bool,
+    /// Size of the virtual display created while no display is connected (None: off).
+    virtual_size: Option<(u32, u32)>,
 }
 
 static SETTINGS: Mutex<Settings> = Mutex::new(Settings {
@@ -61,10 +65,21 @@ static SETTINGS: Mutex<Settings> = Mutex::new(Settings {
     max_pixels: 2560.0 * 1600.0,
     fps: 60,
     show_cursor: false,
+    virtual_size: Some(DEFAULT_VIRTUAL_SIZE),
 });
+
+const DEFAULT_VIRTUAL_SIZE: (u32, u32) = (1920, 1080);
 
 /// Reads the macOS options and checks the privacy permissions voxl needs.
 pub fn init(a: &HashMap<String, String>) {
+    let virtual_size = match a.get("virtual-display") {
+        Some(v) => virtual_display::parse_size(v).unwrap_or_else(|e| {
+            log::error!("{e}");
+            std::process::exit(2);
+        }),
+        None => Some(DEFAULT_VIRTUAL_SIZE),
+    };
+    SETTINGS.lock().virtual_size = virtual_size;
     let display = pick_display(a.get("display").map(|s| s.as_str()));
     let read_only = crate::truthy(a.get("read-only"), false);
     let show_cursor = crate::truthy(a.get("show-cursor"), read_only);
@@ -143,6 +158,12 @@ fn pick_display(arg: Option<&str>) -> u32 {
             }
         );
     }
+    if ids.is_empty() {
+        match create_virtual_display() {
+            Ok(id) => return id,
+            Err(e) => log::error!("no display is connected and {e}"),
+        }
+    }
     let main = unsafe { CGMainDisplayID() };
     match arg.and_then(|s| s.trim_start_matches(':').parse::<u32>().ok()) {
         Some(n) if (n as usize) < ids.len() => ids[n as usize],
@@ -168,6 +189,53 @@ pub fn active_displays() -> Vec<u32> {
 
 pub fn display() -> u32 {
     SETTINGS.lock().display
+}
+
+/// Active displays other than voxl's virtual one, main first.
+pub fn physical_displays() -> Vec<u32> {
+    let virtual_id = virtual_display::id();
+    active_displays()
+        .into_iter()
+        .filter(|&id| Some(id) != virtual_id)
+        .collect()
+}
+
+fn create_virtual_display() -> Result<u32, String> {
+    let size = SETTINGS
+        .lock()
+        .virtual_size
+        .ok_or("--virtual-display is off")?;
+    virtual_display::create(size).map_err(|e| format!("the virtual display failed: {e}"))
+}
+
+/// Points capture at a display that exists, after the captured one went away or came
+/// back: a physical display when there is one (removing the virtual display), else the
+/// virtual display. Returns whether the captured display changed.
+pub fn recover_display() -> Result<bool, String> {
+    let current = display();
+    let physical = physical_displays();
+    if virtual_display::id() == Some(current) {
+        let Some(&target) = physical.first() else {
+            return Ok(false);
+        };
+        virtual_display::remove();
+        select_display(target)?;
+        log::info!("display {target} is connected again; streaming it");
+        return Ok(true);
+    }
+    if active_displays().contains(&current) {
+        return Ok(false);
+    }
+    if let Some(&target) = physical.first() {
+        select_display(target)?;
+        log::info!("display {current} is gone; streaming display {target}");
+        return Ok(true);
+    }
+    let target =
+        create_virtual_display().map_err(|e| format!("no display is connected and {e}"))?;
+    select_display(target)?;
+    log::info!("display {current} is gone; streaming the virtual display");
+    Ok(true)
 }
 
 pub struct DisplayRequest {
@@ -220,7 +288,12 @@ pub fn display_info() -> serde_json::Value {
             } else {
                 ""
             };
-            serde_json::json!({ "id": id, "name": format!("Display {}{suffix}", i + 1) })
+            let name = if Some(id) == virtual_display::id() {
+                format!("Virtual display{suffix}")
+            } else {
+                format!("Display {}{suffix}", i + 1)
+            };
+            serde_json::json!({ "id": id, "name": name })
         })
         .collect();
     serde_json::json!({ "selected": display(), "available": displays })
