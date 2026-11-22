@@ -259,10 +259,15 @@ apps that should hear you.
 | `--show-cursor`        | `false` (`true` with `--read-only`) | include the host cursor in the video stream (for viewers/observers)                    |
 | `--virtual-display`    | `1920x1080`                         | size of the display voxl creates while no display is connected, or `off`               |
 
+Screen capture runs only while something needs it: a viewer, a recording, a screenshot
+or a `/wait`. Five seconds after the last of them is gone, voxl stops capturing (and the
+menu bar's recording indicator goes away) to save battery, and starts again when the next
+one arrives, which delays its first frame by a fraction of a second.
+
 When no display is connected (a Mac mini whose monitor is switched off, or one running
 headless), voxl creates a virtual display of `--virtual-display` size and streams it, so
-viewers stay connected. When a monitor is connected again, voxl removes the virtual
-display and streams the monitor. The virtual display uses CoreGraphics' private
+viewers stay connected. When a monitor is connected again, or capture pauses, voxl
+removes the virtual display. The virtual display uses CoreGraphics' private
 `CGVirtualDisplay` API, which a macOS update could change: if it fails, voxl logs why and
 exits as it did before.
 

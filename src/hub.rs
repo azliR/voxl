@@ -3,7 +3,7 @@
 use bytes::Bytes;
 use parking_lot::Mutex;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::mpsc;
@@ -265,6 +265,8 @@ pub struct Hub {
     pub snapshots: Mutex<Vec<tokio::sync::oneshot::Sender<Arc<crate::record::Snapshot>>>>,
     /// When each part of the screen last changed (`/wait`).
     pub activity: crate::wait::Activity,
+    /// `/wait` requests in progress; they keep capture running like a viewer does.
+    pub waiters: AtomicUsize,
 }
 
 impl Hub {
@@ -290,6 +292,7 @@ impl Hub {
             hello_extra: Mutex::new(serde_json::Map::new()),
             snapshots: Mutex::new(Vec::new()),
             activity: Default::default(),
+            waiters: AtomicUsize::new(0),
         })
     }
 
@@ -338,6 +341,14 @@ impl Hub {
             .filter(|c| c.video.load(Ordering::Relaxed))
             .cloned()
             .collect()
+    }
+
+    /// Whether anything needs the screen captured: a viewer or recording, a pending
+    /// screenshot or a `/wait` in progress.
+    pub fn wants_capture(&self) -> bool {
+        !self.video_clients().is_empty()
+            || !self.snapshots.lock().is_empty()
+            || self.waiters.load(Ordering::Relaxed) > 0
     }
 
     /// The `hello` message: current geometry plus the server's settings.

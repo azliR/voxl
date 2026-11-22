@@ -14,8 +14,10 @@
 //! (pass it as `since` later) and `waited_ms`.
 //!
 //! The capture thread hears about every change anyway (XDamage, ScreenCaptureKit's and
-//! DXGI's dirty rectangles), whether or not anyone is watching, so it notes when each
-//! 16x16 block last changed and a wait needs no screenshots and no polling.
+//! DXGI's dirty rectangles), so it notes when each 16x16 block last changed and a wait
+//! needs no screenshots and no polling. Where capture pauses while nobody watches
+//! (macOS), a wait starts it again, and a restarted capture counts as a change
+//! everywhere, so a `since` from before the pause always reports `changed`.
 
 use crate::hub::Hub;
 use axum::extract::{Query, State};
@@ -51,6 +53,8 @@ struct Map {
     last: Mark,
     /// The latest new capture (startup or a resize), which changed everything.
     reset: Mark,
+    /// Capture is paused (nothing watching), so changes aren't being seen.
+    paused: bool,
 }
 
 impl Map {
@@ -88,6 +92,7 @@ impl Default for Activity {
                 blocks: Vec::new(),
                 last: start,
                 reset: start,
+                paused: false,
             }),
             seq: watch::channel(0).0,
         }
@@ -107,9 +112,19 @@ impl Activity {
             blocks: vec![now; cols * (height as usize).div_ceil(16)],
             last: now,
             reset: now,
+            paused: false,
         };
         drop(m);
         self.seq.send_replace(now.0);
+    }
+
+    /// Capture stopped: changes go unseen until the next `reset`.
+    pub fn pause(&self) {
+        self.map.lock().paused = true;
+    }
+
+    fn paused(&self) -> bool {
+        self.map.lock().paused
     }
 
     /// Areas that changed, as (x0, y0, x1, y1) in desktop pixels.
@@ -153,6 +168,27 @@ impl Activity {
     fn on_screen(&self, r: Rect) -> bool {
         let m = self.map.lock();
         m.span(r.x, r.y, r.x.saturating_add(r.w), r.y.saturating_add(r.h)) != (0, 0, 0, 0)
+    }
+}
+
+/// Counts a `/wait` in progress while it lives, so a capture paused for lack of viewers
+/// starts again and its changes are seen.
+struct Waiter<'a>(&'a Hub);
+
+impl<'a> Waiter<'a> {
+    fn new(hub: &'a Hub) -> Self {
+        hub.waiters
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        hub.wake();
+        Waiter(hub)
+    }
+}
+
+impl Drop for Waiter<'_> {
+    fn drop(&mut self) {
+        self.0
+            .waiters
+            .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -217,14 +253,24 @@ pub async fn wait(
         },
     };
     let since = match q.get("since") {
-        None => a.seq(),
+        None => None,
         Some(v) => match v.parse() {
-            Ok(n) => n,
+            Ok(n) => Some(n),
             Err(_) => return bad("since must be a seq from an earlier /wait or screenshot"),
         },
     };
     let deadline = start + timeout;
     let mut rx = a.seq.subscribe();
+    let _keep_capturing = Waiter::new(&hub);
+    // A paused capture restarts for this wait; its restart isn't a change the caller made.
+    while a.paused() && Instant::now() < deadline {
+        rx.borrow_and_update();
+        if !a.paused() {
+            break;
+        }
+        let _ = tokio::time::timeout_at(deadline.into(), rx.changed()).await;
+    }
+    let since = since.unwrap_or_else(|| a.seq());
     let timed_out = loop {
         // Mark the current change seen before looking, so a later one wakes us.
         rx.borrow_and_update();
@@ -257,4 +303,31 @@ pub async fn wait(
             "waited_ms": start.elapsed().as_millis() as u64,
         }),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_restarted_capture_ends_the_pause_and_counts_as_a_change() {
+        let activity = Activity::default();
+        activity.reset(64, 64);
+        let before = activity.seq();
+        activity.pause();
+        assert!(activity.paused());
+        activity.reset(64, 64);
+        assert!(!activity.paused());
+        assert!(activity.seq() > before);
+    }
+
+    #[test]
+    fn wants_capture_follows_waiters() {
+        let hub = Hub::new();
+        assert!(!hub.wants_capture());
+        let waiter = Waiter::new(&hub);
+        assert!(hub.wants_capture());
+        drop(waiter);
+        assert!(!hub.wants_capture());
+    }
 }

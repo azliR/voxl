@@ -85,20 +85,26 @@ pub fn spawn(
                 ret_rx,
                 encode,
             } = p;
-            if let Err(e) = capture_loop(&mut cap, cfg.clone(), hub.clone(), job_tx, ret_rx) {
-                #[cfg(target_os = "linux")]
-                let resized = cap.geometry_changed();
-                #[cfg(not(target_os = "linux"))]
-                let resized = false;
-                if resized {
+            let ended = match capture_loop(&mut cap, cfg.clone(), hub.clone(), job_tx, ret_rx) {
+                Ok(ended) => ended,
+                Err(e) => {
+                    #[cfg(target_os = "linux")]
+                    let resized = cap.geometry_changed();
+                    #[cfg(not(target_os = "linux"))]
+                    let resized = false;
+                    if !resized {
+                        log::error!("capture loop ended: {e}");
+                        std::process::exit(1);
+                    }
                     log::info!("capture geometry changed: {e}");
-                } else {
-                    log::error!("capture loop ended: {e}");
-                    std::process::exit(1);
+                    LoopEnd::Rebuild
                 }
-            }
+            };
             drop(cap);
             let _ = encode.join();
+            if matches!(ended, LoopEnd::Idle) {
+                pause_until_needed(&hub);
+            }
             #[cfg(target_os = "macos")]
             let display_request = hub.display_req.lock().take();
             #[cfg(target_os = "macos")]
@@ -587,13 +593,46 @@ fn note_changes(cap: &mut Capturer, hub: &Hub) {
     }
 }
 
+/// Why the capture loop returned.
+enum LoopEnd {
+    /// The screen or the selected display changed: set capture up again.
+    Rebuild,
+    /// Nothing needed the screen for `IDLE_GRACE`: stop capturing until something does.
+    Idle,
+}
+
+/// Capture stops after nothing has needed it for this long, so a viewer that reloads
+/// or briefly loses its connection doesn't restart it.
+const IDLE_GRACE: Duration = Duration::from_secs(5);
+
+/// Whether capture stops while nothing needs it. On a Mac, ScreenCaptureKit keeps the
+/// GPU converting frames (and the menu bar's recording indicator on) even when nothing
+/// is encoded, which costs battery.
+const PAUSE_WHEN_IDLE: bool = cfg!(target_os = "macos");
+
+/// Blocks while nothing needs the screen captured (see `Hub::wants_capture`).
+fn pause_until_needed(hub: &Hub) {
+    log::info!("nothing is watching; screen capture paused");
+    hub.activity.pause();
+    #[cfg(target_os = "macos")]
+    crate::mac::virtual_display::remove();
+    loop {
+        hub.drain_wake();
+        if hub.wants_capture() {
+            break;
+        }
+        wait_any(&[hub.waker.waitable()], 1000);
+    }
+    log::info!("screen capture resumed");
+}
+
 fn capture_loop(
     cap: &mut Capturer,
     cfg: VideoConfig,
     hub: Arc<Hub>,
     job_tx: mpsc::SyncSender<Job>,
     ret_rx: mpsc::Receiver<(usize, Box<I420>)>,
-) -> Result<(), String> {
+) -> Result<LoopEnd, String> {
     let (w, h) = (cap.width as usize, cap.height as usize);
     let mut pool: Vec<Option<Box<I420>>> = vec![
         Some(Box::new(I420::new(w, h))),
@@ -611,6 +650,7 @@ fn capture_loop(
     let mut rc = RateCtl::new(cfg.max_kbps as f64, cfg.min_kbps as f64);
     hub.target_kbps.store(rc.target as u32, Ordering::Relaxed);
     let mut had_clients = false;
+    let mut unwatched_since: Option<Instant> = None;
     let mut full_next = true;
     let mut refiner = Refiner::new(w.div_ceil(16) * h.div_ceil(16), w.div_ceil(16));
     let debug_marker = std::env::var("VOXL_DEBUG_MARKER").is_ok();
@@ -618,14 +658,14 @@ fn capture_loop(
     loop {
         #[cfg(target_os = "macos")]
         if hub.display_req.lock().is_some() {
-            return Ok(());
+            return Ok(LoopEnd::Rebuild);
         }
         if hub.resize_req.lock().is_some() || cap.needs_rebuild() {
-            return Ok(());
+            return Ok(LoopEnd::Rebuild);
         }
         cap.pump()?;
         if cap.needs_rebuild() {
-            return Ok(());
+            return Ok(LoopEnd::Rebuild);
         }
         note_changes(cap, &hub);
         hub.drain_wake();
@@ -658,9 +698,18 @@ fn capture_loop(
                 hub.target_kbps.store(rc.target as u32, Ordering::Relaxed);
             }
             had_clients = false;
+            if PAUSE_WHEN_IDLE && !hub.wants_capture() {
+                let since = *unwatched_since.get_or_insert_with(Instant::now);
+                if since.elapsed() >= IDLE_GRACE {
+                    return Ok(LoopEnd::Idle);
+                }
+            } else {
+                unwatched_since = None;
+            }
             wait_any(&[cap.fd(), hub.waker.waitable()], 500);
             continue;
         }
+        unwatched_since = None;
         rc.update(&hub, &clients);
         let want_key = clients
             .iter()
