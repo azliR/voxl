@@ -1,6 +1,6 @@
-// Toolbar (top right on hover; bottom right and always visible on touch devices):
+// Toolbar (top center on hover; bottom center and always visible on touch devices):
 // display picker, on-screen keyboard, trackpad mode, Cmd/Ctrl swap, files, microphone
-// and fullscreen buttons.
+// fullscreen and collapse buttons. Collapsed, it is a small tab that opens it again.
 import { cmd } from '../protocol';
 import type { Hello } from '../protocol';
 import type { App } from './app';
@@ -10,6 +10,8 @@ import { el } from './app';
 const TRACKPAD_KEY = 'voxl-trackpad';
 /** localStorage key that remembers, on this device, that Cmd and Ctrl aren't swapped. */
 const KEEP_SHORTCUT_KEY = 'voxl-keep-shortcut-key';
+/** localStorage key that remembers a collapsed toolbar on this device. */
+const COLLAPSED_KEY = 'voxl-toolbar-collapsed';
 
 export function setupToolbar(
 	app: App,
@@ -21,6 +23,8 @@ export function setupToolbar(
 	const tpBtn = el<HTMLButtonElement>('tp-btn');
 	const keysBtn = el<HTMLButtonElement>('keys-btn');
 	const fsBtn = el<HTMLButtonElement>('fs-btn');
+	const collapseBtn = el<HTMLButtonElement>('collapse-btn');
+	const tab = el<HTMLButtonElement>('tools-tab');
 	const picker = el('display-picker');
 	const displayBtn = el<HTMLButtonElement>('display-btn');
 	const displayLabel = el('display-label');
@@ -117,11 +121,22 @@ export function setupToolbar(
 		true
 	);
 
+	let collapsed = false;
+	try {
+		collapsed = localStorage.getItem(COLLAPSED_KEY) === '1';
+	} catch {}
+
 	let hideTimer: ReturnType<typeof setTimeout> | undefined;
+	/** Shows the toolbar, or its tab while collapsed, for `ms` (0: until further notice). */
 	function show(ms: number) {
 		tools.classList.add('show');
+		tab.classList.add('show');
 		clearTimeout(hideTimer);
-		if (ms) hideTimer = setTimeout(() => tools.classList.remove('show'), ms);
+		if (!ms) return;
+		hideTimer = setTimeout(() => {
+			tools.classList.remove('show');
+			tab.classList.remove('show');
+		}, ms);
 	}
 	// Touch devices keep the toolbar visible; mice reveal it near the top edge.
 	const touch = matchMedia('(pointer: coarse)').matches;
@@ -130,16 +145,34 @@ export function setupToolbar(
 		show(0);
 	} else
 		document.addEventListener('pointermove', (e) => {
+			if (e.pointerType !== 'mouse') return;
+			const r = (collapsed ? tab : tools).getBoundingClientRect();
+			const margin = collapsed ? 24 : 16;
 			if (
-				e.pointerType === 'mouse' &&
-				e.clientY < 48 &&
-				e.clientX > window.innerWidth - 160
+				e.clientY < r.bottom + margin &&
+				e.clientX > r.left - margin &&
+				e.clientX < r.right + margin
 			)
 				show(2500);
 		});
 	// Clicks on the toolbar must not reach the desktop surface underneath.
-	for (const b of tools.querySelectorAll('button, [role="listbox"]'))
+	for (const b of [tab, ...tools.querySelectorAll('button, [role="listbox"]')])
 		b.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+	tools.classList.toggle('collapsed', collapsed);
+	function setCollapsed(on: boolean) {
+		collapsed = on;
+		try {
+			if (on) localStorage.setItem(COLLAPSED_KEY, '1');
+			else localStorage.removeItem(COLLAPSED_KEY);
+		} catch {}
+		closeMenu(false);
+		tools.classList.toggle('collapsed', on);
+		show(touch ? 0 : 2500);
+		if (!touch) kbd.focus({ preventScroll: true });
+	}
+	collapseBtn.addEventListener('click', () => setCollapsed(true));
+	tab.addEventListener('click', () => setCollapsed(false));
 
 	kbBtn.addEventListener('click', () => {
 		if (document.activeElement === kbd && kbd.dataset.soft) {

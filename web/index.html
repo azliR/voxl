@@ -158,7 +158,8 @@
 			#tools {
 				position: fixed;
 				top: 8px;
-				right: 8px;
+				left: 50%;
+				transform: translateX(-50%);
 				display: flex;
 				gap: 2px;
 				padding: 2px;
@@ -410,6 +411,78 @@
 			}
 			#mic-btn.err svg.i {
 				color: var(--negative);
+			}
+			#tools.touch #collapse-btn svg.i {
+				transform: rotate(180deg);
+			}
+			/* Collapsed, the toolbar is a small tab at the same edge that opens it again. It
+			   stays in the page, only invisible: with nothing drawn over the video, browsers
+			   may hand it to a hardware overlay that scales it blurrier. */
+			#tools.collapsed {
+				opacity: 0 !important;
+				pointer-events: none !important;
+			}
+			#tools-tab {
+				position: fixed;
+				top: 0;
+				left: 50%;
+				transform: translateX(-50%);
+				width: 44px;
+				height: 12px;
+				padding: 0;
+				border: 0;
+				z-index: 3;
+				display: none;
+				cursor: pointer;
+				opacity: 0;
+				pointer-events: none;
+				transition: opacity 0.1s;
+				background: transparent;
+			}
+			#tools-tab::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 50%;
+				width: 28px;
+				height: 5px;
+				transform: translateX(-50%);
+				box-sizing: border-box;
+				background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+				border: 1px solid var(--border-default);
+				border-top: 0;
+				border-radius: 0 0 4px 4px;
+				transition: height 0.1s;
+			}
+			#tools-tab:hover::before {
+				height: 8px;
+				background: var(--icon-default);
+			}
+			#tools.collapsed ~ #tools-tab {
+				display: block;
+			}
+			#tools-tab.show,
+			#tools.mic-on ~ #tools-tab {
+				opacity: 1;
+				pointer-events: auto;
+			}
+			#tools.mic-on ~ #tools-tab::before {
+				background: var(--negative);
+			}
+			#tools.touch ~ #tools-tab {
+				top: auto;
+				bottom: 0;
+				width: 64px;
+				height: 20px;
+			}
+			#tools.touch ~ #tools-tab::before {
+				top: auto;
+				bottom: 0;
+				width: 40px;
+				height: 6px;
+				border-top: 1px solid var(--border-default);
+				border-bottom: 0;
+				border-radius: 4px 4px 0 0;
 			}
 
 			#status {
@@ -934,7 +1007,27 @@
 						stroke-linejoin="round" />
 				</svg>
 			</button>
+			<button
+				id="collapse-btn"
+				class="ib"
+				type="button"
+				title="Collapse the toolbar"
+				aria-label="Collapse the toolbar">
+				<svg class="i" viewBox="0 0 24 24" fill="none">
+					<path
+						d="M16 14L12.7071 10.7071C12.3166 10.3166 11.6834 10.3166 11.2929 10.7071L8 14"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round" />
+				</svg>
+			</button>
 		</div>
+		<button
+			id="tools-tab"
+			type="button"
+			title="Show the toolbar"
+			aria-label="Show the toolbar"></button>
 		<div id="files" role="dialog" aria-label="Files">
 			<header>
 				<h2>Files</h2>
