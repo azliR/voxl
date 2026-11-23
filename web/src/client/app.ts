@@ -23,6 +23,9 @@ export interface App {
 	inIframe: boolean;
 	/** Desktop size in pixels; 0 until the server says hello. */
 	desk: { w: number; h: number };
+	/** The window height the desktop is laid out for: the height before the on-screen
+	 * keyboard came up, while it is up (extrakeys.ts). */
+	layoutHeight(): number;
 	/** On-screen CSS pixels per desktop pixel, before any pinch zoom (zoom.ts). */
 	view: { scale: number };
 }

@@ -373,6 +373,10 @@ to zoom, two fingers to move around a zoomed-in view and scroll) and an on-scree
 keyboard. While pinching, the view also follows the fingers, and can go past the
 desktop's edges until any edge reaches the middle of the screen, to see around the
 on-screen keyboard or bring a corner within reach.
+Above the on-screen keyboard, a bar that scrolls sideways has the keys phone keyboards
+lack: Esc, Tab, Ctrl, Cmd or Win, Alt or Option, Shift, arrows, Home/End, Page Up/Down,
+Delete and F1-F12. Modifiers stick for the next key, typed on the bar or the phone's
+keyboard; the other keys repeat while held.
 The toolbar's trackpad button switches to trackpad mode, which works like a laptop's
 trackpad: one finger moves a cursor from where it is (farther the faster it moves), a
 tap clicks and a two-finger tap right clicks where the cursor is, and press and hold,

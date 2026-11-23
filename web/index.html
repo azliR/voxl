@@ -4,7 +4,7 @@
 		<meta charset="utf-8" />
 		<meta
 			name="viewport"
-			content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+			content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,interactive-widget=resizes-content" />
 		<!-- The server fills in the title (index_html in src/server.rs). -->
 		<meta name="application-name" content="{{title}}" />
 		<meta name="apple-mobile-web-app-title" content="{{title}}" />
@@ -76,6 +76,12 @@
 				align-items: center;
 				justify-content: center;
 				-webkit-font-smoothing: antialiased;
+				/* A remote desktop, not a document: a long press selects nothing and opens
+				   no callout (iOS), whatever it lands on. */
+				-webkit-user-select: none;
+				user-select: none;
+				-webkit-touch-callout: none;
+				-webkit-tap-highlight-color: transparent;
 			}
 			#surface {
 				position: relative;
@@ -459,6 +465,52 @@
 			#tools.touch ~ #tools-tab::before {
 				width: 40px;
 				height: 6px;
+			}
+
+			/* Extra keys above the on-screen keyboard (extrakeys.ts), scrolling sideways. */
+			#extra-keys {
+				position: fixed;
+				left: 0;
+				right: 0;
+				top: 0;
+				z-index: 3;
+				display: flex;
+				gap: 4px;
+				padding: 4px max(6px, env(safe-area-inset-left)) 4px
+					max(6px, env(safe-area-inset-right));
+				overflow-x: auto;
+				overscroll-behavior: contain;
+				touch-action: pan-x;
+				scrollbar-width: none;
+				background: color-mix(in srgb, var(--surface-raised) 95%, transparent);
+				border-top: 1px solid var(--border-default);
+				backdrop-filter: blur(30px);
+				-webkit-backdrop-filter: blur(30px);
+			}
+			#extra-keys[hidden] {
+				display: none;
+			}
+			#extra-keys::-webkit-scrollbar {
+				display: none;
+			}
+			#extra-keys button {
+				flex: none;
+				min-width: 44px;
+				height: 36px;
+				padding: 0 10px;
+				border: 0;
+				border-radius: 8px;
+				background: var(--state-hover);
+				color: var(--text-default);
+				font: 520 14px/1 var(--font);
+				white-space: nowrap;
+			}
+			#extra-keys button:active {
+				background: var(--state-pressed);
+			}
+			#extra-keys button.on {
+				background: var(--text-default);
+				color: var(--surface-raised);
 			}
 
 			#status {

@@ -7,6 +7,7 @@ import { el } from './app';
 import { createAudio } from './audio';
 import { createClipboard } from './clipboard';
 import { createCursor } from './cursor';
+import { createExtraKeys } from './extrakeys';
 import { createFiles } from './files';
 import { setupKeyboard } from './keyboard';
 import { createMic } from './mic';
@@ -82,6 +83,7 @@ function main() {
 		readOnly: false,
 		inIframe: window !== window.top,
 		desk: { w: 0, h: 0 },
+		layoutHeight: () => window.innerHeight,
 		view: { scale: 1 },
 	};
 
@@ -102,7 +104,8 @@ function main() {
 		clipboard.flush();
 	};
 	const pointer = setupPointer(app, zoom, onInteract);
-	setupKeyboard(app, clipboard, onInteract);
+	const keyboard = setupKeyboard(app, clipboard, onInteract);
+	const extraKeys = createExtraKeys(app, keyboard);
 	const updateDisplays = setupToolbar(app, video.layout, pointer.setTrackpad);
 	const files = createFiles(app);
 	const mic = createMic(app);
@@ -153,6 +156,7 @@ function main() {
 				mic.setup(!!m.mic && !app.readOnly);
 				updateDisplays(m.displays);
 				resize.setup(m.resize);
+				extraKeys.update();
 				statusEl.style.display = 'none';
 				break;
 			case 'status':

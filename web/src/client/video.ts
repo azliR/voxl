@@ -87,7 +87,7 @@ export function createVideo(
 		const { w: dw, h: dh } = app.desk;
 		if (!dw) return;
 		const vw = window.innerWidth,
-			vh = window.innerHeight;
+			vh = app.layoutHeight();
 		const dpr = window.devicePixelRatio || 1;
 		// Snap the height so every stripe boundary lands on a whole device pixel;
 		// otherwise the stacked stripe layers show hairline seams.

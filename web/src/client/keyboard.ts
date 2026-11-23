@@ -29,6 +29,8 @@ const NAMED: Record<string, number> = {
 	' ': 0x20,
 };
 for (let i = 1; i <= 24; i++) NAMED['F' + i] = 0xffbd + i;
+/** Shift, Control, Alt, Super and the like (XK_Shift_L to XK_Hyper_R). */
+const isModifier = (ks: number) => ks >= 0xffe1 && ks <= 0xffee;
 const XK_BACKSPACE = 0xff08,
 	XK_RETURN = 0xff0d,
 	XK_DELETE = 0xffff;
@@ -46,6 +48,8 @@ async function toPng(file: File): Promise<ArrayBuffer> {
 	c.getContext('2d')!.drawImage(bmp, 0, 0);
 	return (await c.convertToBlob({ type: 'image/png' })).arrayBuffer();
 }
+
+export type Keyboard = ReturnType<typeof setupKeyboard>;
 
 export function setupKeyboard(
 	app: App,
@@ -101,22 +105,48 @@ export function setupKeyboard(
 		ks: number;
 		timer: ReturnType<typeof setTimeout>;
 	} | null = null;
+
+	// Sticky modifiers (the extra-keys bar): held down for the next other key, from any
+	// keyboard, then let go.
+	const latched = new Set<number>();
+	/** The key whose release lets the latched modifiers go. */
+	let latchedFor: string | null = null;
+	let onLatchChange: (() => void) | null = null;
+	function latchDown(): boolean {
+		if (!latched.size) return false;
+		for (const ks of latched) send(cmd.key(ks, true));
+		return true;
+	}
+	function latchUp() {
+		for (const ks of latched) send(cmd.key(ks, false));
+		latched.clear();
+		latchedFor = null;
+		onLatchChange?.();
+	}
+
 	const press = (code: string, ks: number) => {
+		if (!isModifier(ks) && latchDown()) latchedFor = code;
 		down.set(code, ks);
 		send(cmd.key(ks, true));
 	};
 	const tap = (ks: number) => {
+		const withLatched = !isModifier(ks) && latchDown();
 		send(cmd.key(ks, true));
 		send(cmd.key(ks, false));
+		if (withLatched) latchUp();
 	};
 	function release(code: string) {
 		const ks = down.get(code);
 		if (ks === undefined) return;
 		down.delete(code);
 		send(cmd.key(ks, false));
+		if (latchedFor === code) latchUp();
 	}
 	function releaseAll() {
 		down.clear();
+		latched.clear();
+		latchedFor = null;
+		onLatchChange?.();
 		send(cmd.releaseAll);
 	}
 	function flushPaste() {
@@ -220,5 +250,20 @@ export function setupKeyboard(
 	surface.addEventListener('focus', () => kbd.focus({ preventScroll: true }));
 	if (!app.inIframe) kbd.focus({ preventScroll: true });
 
-	return { releaseAll };
+	return {
+		releaseAll,
+		/** Press and release a key, with any latched modifiers. */
+		tap,
+		/** Latch a modifier for the next key, or unlatch it. */
+		toggleLatch(ks: number) {
+			if (latched.has(ks)) latched.delete(ks);
+			else latched.add(ks);
+			onLatchChange?.();
+		},
+		isLatched: (ks: number) => latched.has(ks),
+		/** Called whenever the latched modifiers change. */
+		onLatch(fn: () => void) {
+			onLatchChange = fn;
+		},
+	};
 }

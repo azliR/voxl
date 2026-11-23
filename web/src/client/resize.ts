@@ -14,10 +14,11 @@ export function createResize(app: App) {
 	const override = Number(new URLSearchParams(location.search).get('scale'));
 
 	function send() {
-		if (!scale || !window.innerWidth || !window.innerHeight) return;
+		const height = app.layoutHeight();
+		if (!scale || !window.innerWidth || !height) return;
 		const s = override > 0 ? override : scale;
 		const w = Math.round(window.innerWidth * s);
-		const h = Math.round(window.innerHeight * s);
+		const h = Math.round(height * s);
 		const key = `${w},${h}`;
 		if (key === last) return;
 		last = key;
