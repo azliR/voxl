@@ -15,6 +15,9 @@ export interface App {
 	isMac: boolean;
 	/** The desktop is a Mac (from the server's hello). */
 	remoteMac: boolean;
+	/** Between a Mac and another OS, the viewer's shortcut key (Cmd or Ctrl) presses the
+	 * desktop's. Off sends each key as itself. The toolbar's key button switches it. */
+	swapShortcutKey: boolean;
 	/** The server only shows the desktop (--read-only), from the server's hello. */
 	readOnly: boolean;
 	inIframe: boolean;

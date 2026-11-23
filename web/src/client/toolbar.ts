@@ -1,6 +1,6 @@
 // Toolbar (top right on hover; bottom right and always visible on touch devices):
-// display picker, on-screen keyboard, trackpad mode, files, microphone and fullscreen
-// buttons.
+// display picker, on-screen keyboard, trackpad mode, Cmd/Ctrl swap, files, microphone
+// and fullscreen buttons.
 import { cmd } from '../protocol';
 import type { Hello } from '../protocol';
 import type { App } from './app';
@@ -8,6 +8,8 @@ import { el } from './app';
 
 /** localStorage key that remembers trackpad mode on this device. */
 const TRACKPAD_KEY = 'voxl-trackpad';
+/** localStorage key that remembers, on this device, that Cmd and Ctrl aren't swapped. */
+const KEEP_SHORTCUT_KEY = 'voxl-keep-shortcut-key';
 
 export function setupToolbar(
 	app: App,
@@ -17,6 +19,7 @@ export function setupToolbar(
 	const { tools, kbd } = app;
 	const kbBtn = el<HTMLButtonElement>('kb-btn');
 	const tpBtn = el<HTMLButtonElement>('tp-btn');
+	const keysBtn = el<HTMLButtonElement>('keys-btn');
 	const fsBtn = el<HTMLButtonElement>('fs-btn');
 	const picker = el('display-picker');
 	const displayBtn = el<HTMLButtonElement>('display-btn');
@@ -170,6 +173,31 @@ export function setupToolbar(
 	});
 	applyTrackpad();
 
+	// The Cmd/Ctrl swap: only shown between a Mac and another OS, where it does something.
+	try {
+		app.swapShortcutKey = localStorage.getItem(KEEP_SHORTCUT_KEY) !== '1';
+	} catch {}
+	function applyShortcutKey() {
+		const on = app.swapShortcutKey;
+		tools.classList.toggle('cross-os', app.isMac !== app.remoteMac);
+		keysBtn.classList.toggle('on', on);
+		keysBtn.setAttribute('aria-pressed', String(on));
+		const [mine, theirs] = app.isMac ? ['Cmd', 'Ctrl'] : ['Ctrl', 'Cmd'];
+		keysBtn.title = on
+			? `${mine} presses ${theirs} on the desktop (click to send each key as itself)`
+			: `Each key is sent as itself (click to make ${mine} press ${theirs})`;
+	}
+	keysBtn.addEventListener('click', () => {
+		app.send(cmd.releaseAll);
+		app.swapShortcutKey = !app.swapShortcutKey;
+		try {
+			if (app.swapShortcutKey) localStorage.removeItem(KEEP_SHORTCUT_KEY);
+			else localStorage.setItem(KEEP_SHORTCUT_KEY, '1');
+		} catch {}
+		applyShortcutKey();
+	});
+	applyShortcutKey();
+
 	if (!document.fullscreenEnabled) fsBtn.style.display = 'none';
 	fsBtn.addEventListener('click', () => {
 		if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -191,6 +219,7 @@ export function setupToolbar(
 	// Called with each hello.
 	return (info: Hello['displays']) => {
 		applyTrackpad();
+		applyShortcutKey();
 		closeMenu(false);
 		picker.hidden = !info || info.available.length < 2 || app.readOnly;
 		displayBtn.disabled = false;

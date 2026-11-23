@@ -376,6 +376,11 @@ trackpad: one finger moves a cursor from where it is (farther the faster it move
 tap clicks and a two-finger tap right clicks where the cursor is, and press and hold,
 then move, drags. The whole screen is the trackpad, and the browser remembers the mode.
 
+Between a Mac and another OS, the shortcut key follows the viewer: a Windows or Linux
+viewer's Ctrl presses Cmd on a Mac desktop (and the Windows key presses Ctrl), and a Mac
+viewer's Cmd presses Ctrl on a Linux desktop. To send each key as itself instead, turn
+off the toolbar's ⌘ button; each browser remembers its own choice.
+
 **Wayland?** Not yet; on Linux voxl streams X11 displays, Xvfb included. The virtual
 desktops voxl is built for run on Xvfb (E2B's and Daytona's do too), and X11 lets voxl
 capture them without a permission prompt, with damage events that keep a still screen at

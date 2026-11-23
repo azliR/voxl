@@ -78,6 +78,7 @@ function main() {
 		tools: el('tools'),
 		isMac: /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent),
 		remoteMac: false,
+		swapShortcutKey: true,
 		readOnly: false,
 		inIframe: window !== window.top,
 		desk: { w: 0, h: 0 },
