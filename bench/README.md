@@ -107,3 +107,9 @@ desktop (pointer, keyboard, clipboard), so run them when nobody is using the Mac
 - `clipimage.js`: clipboard images both ways.
 - `mic.js`: a 440 Hz tone through the microphone path (see voxl's log for drops).
 - `perf.js`: full-screen animation; viewer FPS, pipeline and encode times.
+
+## Android
+
+`android-decode/` times H.264 decoding through the NDK's MediaCodec on a phone (as a
+shell executable or a foreground NativeActivity APK), against Chrome's WebCodecs on the
+same recorded voxl frames. See its README.
