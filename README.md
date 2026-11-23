@@ -368,6 +368,10 @@ viewer's Ctrl presses Cmd on a Mac desktop (and the Windows key presses Ctrl), a
 viewer's Cmd presses Ctrl on a Linux desktop. To send each key as itself instead, turn
 off the toolbar's ⌘ button; each browser remembers its own choice.
 
+The toolbar shows when the pointer nears the top center (it stays at the bottom on touch
+devices). Its last button collapses it to a small tab there, which opens it again; each
+browser remembers that too.
+
 **Wayland?** Not yet; on Linux voxl streams X11 displays, Xvfb included. The virtual
 desktops voxl is built for run on Xvfb (E2B's and Daytona's do too), and X11 lets voxl
 capture them without a permission prompt, with damage events that keep a still screen at
