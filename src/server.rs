@@ -251,12 +251,17 @@ async fn handle_socket(socket: WebSocket, s: AppState) {
     let pinger = {
         let c = client.clone();
         let epoch = s.epoch;
+        let hub = s.hub.clone();
         tokio::spawn(async move {
             let mut iv = tokio::time::interval(Duration::from_millis(500));
+            let mut before = crate::timing::Snapshot::take(&hub.stats);
             loop {
                 iv.tick().await;
                 let t = epoch.elapsed().as_micros() as u64;
                 c.send(Out::Text(format!("{{\"t\":\"ping\",\"s\":{t}}}")));
+                let after = crate::timing::Snapshot::take(&hub.stats);
+                c.send(Out::Text(crate::timing::message(&before, &after, &c)));
+                before = after;
             }
         })
     };
@@ -441,7 +446,10 @@ fn handle_text(s: &AppState, c: &Arc<Client>, t: &str, rtts: &mut std::collectio
         "po" => {
             if let Some(sent) = num::<u64>(&mut it) {
                 let now = s.epoch.elapsed().as_micros() as u64;
-                let rtt = (now.saturating_sub(sent) / 1000) as u32;
+                let rtt_us = now.saturating_sub(sent);
+                c.rtt_us
+                    .store(rtt_us.min(u32::MAX as u64) as u32, Ordering::Relaxed);
+                let rtt = (rtt_us / 1000) as u32;
                 rtts.push_back(rtt.max(1));
                 if rtts.len() > 20 {
                     rtts.pop_front();

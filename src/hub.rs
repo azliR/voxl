@@ -27,6 +27,8 @@ pub struct Client {
     pub inflight: Mutex<VecDeque<Inflight>>,
     /// Smoothed min RTT (ms), from pings.
     pub min_rtt_ms: AtomicU32,
+    /// The latest ping's RTT (µs), for the stats overlay.
+    pub rtt_us: AtomicU32,
     /// Exponentially-weighted estimate of delivered bytes/sec, from acks.
     pub delivered: Mutex<RateEst>,
     pub needs_keyframe: AtomicBool,
@@ -309,6 +311,7 @@ impl Hub {
             audio: AtomicBool::new(false),
             inflight: Mutex::new(VecDeque::new()),
             min_rtt_ms: AtomicU32::new(0),
+            rtt_us: AtomicU32::new(0),
             delivered: Mutex::new(RateEst {
                 window_start: Instant::now(),
                 bytes: 0,

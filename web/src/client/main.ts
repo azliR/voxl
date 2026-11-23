@@ -12,6 +12,7 @@ import { setupKeyboard } from './keyboard';
 import { createMic } from './mic';
 import { setupPointer } from './pointer';
 import { createResize } from './resize';
+import { createStats } from './stats';
 import { setupToolbar } from './toolbar';
 import { createVideo } from './video';
 import { createZoom } from './zoom';
@@ -35,7 +36,6 @@ function blocksInput(app: App, command: string): boolean {
 function main() {
 	const canvas = el<HTMLCanvasElement>('screen');
 	const statusEl = el('status');
-	const statsEl = el('stats');
 	const params = new URLSearchParams(location.search);
 	window.fps = 0;
 	window.voxlStats = {};
@@ -107,6 +107,7 @@ function main() {
 	const files = createFiles(app);
 	const mic = createMic(app);
 	const resize = createResize(app);
+	const stats = createStats(app, params.has('stats'));
 
 	const offscreen = canvas.transferControlToOffscreen();
 	post(
@@ -178,12 +179,10 @@ function main() {
 			case 'stats':
 				window.fps = Math.round(m.fps);
 				window.voxlStats = m;
-				if (params.has('stats')) {
-					statsEl.style.display = 'block';
-					statsEl.textContent =
-						`${m.fps.toFixed(1)} fps  ${(m.kbps / 1000).toFixed(2)} Mbps\n` +
-						`decode ${m.decodeMs.toFixed(1)} ms  server ${m.pipeMs.toFixed(1)} ms\n${m.codec || ''} q=${m.queue}`;
-				}
+				stats.setStats(m);
+				break;
+			case 'timing':
+				stats.setTiming(m);
 				break;
 			case 'log':
 				console.warn('[voxl]', m.s);
