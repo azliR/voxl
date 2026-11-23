@@ -1,6 +1,7 @@
 // Touch: tap = click, drag = left-drag, long press = right click, pinch = zoom the
-// view in or out, two fingers = scroll. The content follows the fingers: two fingers
-// move a zoomed-in view, and scroll the desktop once the view reaches its edge.
+// view in or out and move it with the fingers (past the desktop's edges too), two
+// fingers = scroll. The content follows the fingers: two fingers move a zoomed-in view,
+// and scroll the desktop once the view reaches its edge.
 //
 // Trackpad mode (the toolbar's trackpad button) makes the screen work like a laptop's
 // trackpad instead: one finger moves the cursor from where it is, farther the faster
