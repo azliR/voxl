@@ -64,9 +64,10 @@ export function setupKeyboard(
 		AltRight: 0xffea,
 		NumpadEnter: 0xff0d,
 	};
-	// The shortcut key is Command on a Mac and Control elsewhere. Linux desktops get
-	// Control for a Mac viewer's Command; a Mac desktop gets Command for another
-	// viewer's Control (and Control for its Windows/Super key).
+	// The shortcut key is Command on a Mac and Control elsewhere. Unless the viewer
+	// turned it off (app.swapShortcutKey), Linux desktops get Control for a Mac viewer's
+	// Command, and a Mac desktop gets Command for another viewer's Control (and Control
+	// for its Windows/Super key).
 	function modifierKeysym(code: string): number | undefined {
 		const isCtrl = code.startsWith('Control');
 		const isMeta = code.startsWith('Meta') || code.startsWith('OS');
@@ -74,6 +75,7 @@ export function setupKeyboard(
 		const right = code.endsWith('Right');
 		const ctrl = right ? XK_CONTROL_R : XK_CONTROL_L;
 		const sup = right ? XK_SUPER_R : XK_SUPER_L;
+		if (!app.swapShortcutKey) return isCtrl ? ctrl : sup;
 		if (app.remoteMac) return isMac === isCtrl ? ctrl : sup;
 		if (isMac && code.startsWith('Meta')) return ctrl;
 		return isCtrl ? ctrl : sup;

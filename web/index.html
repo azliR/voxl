@@ -364,23 +364,28 @@
 			}
 			#kb-btn,
 			#tp-btn,
+			#keys-btn,
 			#files-btn,
 			#mic-btn {
 				display: none !important;
 			}
 			#tools.touch #kb-btn,
 			#tools.touch #tp-btn,
+			#tools.cross-os #keys-btn,
 			#tools.files #files-btn,
 			#tools.mic #mic-btn {
 				display: inline-grid !important;
 			}
 			/* Read-only: nothing on the desktop accepts what the keyboard or trackpad would send. */
 			#tools.read-only #kb-btn,
-			#tools.read-only #tp-btn {
+			#tools.read-only #tp-btn,
+			#tools.read-only #keys-btn {
 				display: none !important;
 			}
 			#tp-btn.on,
-			#tp-btn.on:hover {
+			#tp-btn.on:hover,
+			#keys-btn.on,
+			#keys-btn.on:hover {
 				background: var(--state-pressed);
 			}
 			/* While the microphone is live the toolbar stays up as a recording indicator. */
@@ -857,6 +862,22 @@
 						d="M3 15H21M12 15V20"
 						stroke="currentColor"
 						stroke-width="2"
+						stroke-linejoin="round" />
+				</svg>
+			</button>
+			<button
+				id="keys-btn"
+				class="ib"
+				type="button"
+				title="Swap Cmd and Ctrl"
+				aria-label="Swap Cmd and Ctrl"
+				aria-pressed="true">
+				<svg class="i" viewBox="0 0 24 24" fill="none">
+					<path
+						d="M15 6V18A3 3 0 1 0 18 15H6A3 3 0 1 0 9 18V6A3 3 0 1 0 6 9H18A3 3 0 1 0 15 6Z"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
 						stroke-linejoin="round" />
 				</svg>
 			</button>
