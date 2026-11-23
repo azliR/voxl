@@ -385,6 +385,8 @@
 			}
 			#tp-btn.on,
 			#tp-btn.on:hover,
+			#stats-btn.on,
+			#stats-btn.on:hover,
 			#keys-btn.on,
 			#keys-btn.on:hover {
 				background: var(--state-pressed);
@@ -948,6 +950,22 @@
 				<svg class="i" viewBox="0 0 24 24" fill="none">
 					<path
 						d="M15 6V18A3 3 0 1 0 18 15H6A3 3 0 1 0 9 18V6A3 3 0 1 0 6 9H18A3 3 0 1 0 15 6Z"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round" />
+				</svg>
+			</button>
+			<button
+				id="stats-btn"
+				class="ib"
+				type="button"
+				title="Stats: frame rate and latency"
+				aria-label="Stats"
+				aria-pressed="false">
+				<svg class="i" viewBox="0 0 24 24" fill="none">
+					<path
+						d="M4 20H20M7 16V11M12 16V6M17 16V13"
 						stroke="currentColor"
 						stroke-width="2"
 						stroke-linecap="round"

@@ -385,6 +385,11 @@ The toolbar shows when the pointer nears the top center (it stays at the bottom 
 devices). Its last button collapses it to a small tab there, which opens it again; each
 browser remembers that too.
 
+The toolbar's stats button (or `?stats` in the URL) shows the frame rate, bitrate and
+where a frame's latency goes: the server's stages (waiting for the capture, grabbing,
+color conversion, encoding), the network (half the round trip, since the two machines'
+clocks can't be compared), and decoding in the browser.
+
 **Wayland?** Not yet; on Linux voxl streams X11 displays, Xvfb included. The virtual
 desktops voxl is built for run on Xvfb (E2B's and Daytona's do too), and X11 lets voxl
 capture them without a permission prompt, with damage events that keep a still screen at

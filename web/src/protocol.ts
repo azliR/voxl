@@ -49,9 +49,23 @@ export interface Hello {
 	displays?: { selected: number; available: { id: number; name: string }[] };
 }
 
+/** Where the server's time per frame goes, and the round trip (src/timing.rs). Times
+ * are in milliseconds; stage times are null when no frame went through. */
+export interface Timing {
+	t: 'timing';
+	wait: number | null;
+	grab: number | null;
+	convert: number | null;
+	encode: number | null;
+	rtt: number;
+	minRtt: number;
+	queue: number;
+}
+
 /** JSON text messages from the server. */
 export type ServerMessage =
 	| Hello
+	| Timing
 	| { t: 'ping'; s: number }
 	| { t: 'clip'; d: string }
 	| { t: 'mic'; on: boolean }

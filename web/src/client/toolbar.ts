@@ -1,6 +1,7 @@
 // Toolbar (top center on hover; bottom center and always visible on touch devices):
-// display picker, on-screen keyboard, trackpad mode, Cmd/Ctrl swap, files, microphone
-// fullscreen and collapse buttons. Collapsed, it is a small tab that opens it again.
+// display picker, on-screen keyboard, trackpad mode, Cmd/Ctrl swap, stats, files,
+// microphone, fullscreen and collapse buttons. Collapsed, it is a small tab that opens
+// it again.
 import { cmd } from '../protocol';
 import type { Hello } from '../protocol';
 import type { App } from './app';
