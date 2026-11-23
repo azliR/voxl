@@ -181,10 +181,6 @@
 				opacity: 1;
 				pointer-events: auto;
 			}
-			#tools.touch {
-				top: auto;
-				bottom: 12px;
-			}
 
 			/* Display picker: the app's Select, with a ghost trigger like the composer's pickers. */
 			#display-picker {
@@ -262,22 +258,10 @@
 				transform-origin: top left;
 				animation: menu-in 0.15s cubic-bezier(0.23, 1, 0.32, 1);
 			}
-			#tools.touch #display-menu {
-				top: auto;
-				bottom: calc(100% + 8px);
-				transform-origin: bottom left;
-				animation-name: menu-in-up;
-			}
 			@keyframes menu-in {
 				from {
 					opacity: 0;
 					transform: translateY(-8px) scale(0.95);
-				}
-			}
-			@keyframes menu-in-up {
-				from {
-					opacity: 0;
-					transform: translateY(8px) scale(0.95);
 				}
 			}
 			@media (prefers-reduced-motion: reduce) {
@@ -414,9 +398,6 @@
 			#mic-btn.err svg.i {
 				color: var(--negative);
 			}
-			#tools.touch #collapse-btn svg.i {
-				transform: rotate(180deg);
-			}
 			/* Collapsed, the toolbar is a small tab at the same edge that opens it again. It
 			   stays in the page, only invisible: with nothing drawn over the video, browsers
 			   may hand it to a hardware overlay that scales it blurrier. */
@@ -472,19 +453,12 @@
 				background: var(--negative);
 			}
 			#tools.touch ~ #tools-tab {
-				top: auto;
-				bottom: 0;
 				width: 64px;
 				height: 20px;
 			}
 			#tools.touch ~ #tools-tab::before {
-				top: auto;
-				bottom: 0;
 				width: 40px;
 				height: 6px;
-				border-top: 1px solid var(--border-default);
-				border-bottom: 0;
-				border-radius: 4px 4px 0 0;
 			}
 
 			#status {

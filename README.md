@@ -370,7 +370,9 @@ localhost:
 
 Phones and tablets get touch input (tap to click, drag, long press to right click, pinch
 to zoom, two fingers to move around a zoomed-in view and scroll) and an on-screen
-keyboard.
+keyboard. While pinching, the view also follows the fingers, and can go past the
+desktop's edges until any edge reaches the middle of the screen, to see around the
+on-screen keyboard or bring a corner within reach.
 The toolbar's trackpad button switches to trackpad mode, which works like a laptop's
 trackpad: one finger moves a cursor from where it is (farther the faster it moves), a
 tap clicks and a two-finger tap right clicks where the cursor is, and press and hold,
@@ -381,8 +383,8 @@ viewer's Ctrl presses Cmd on a Mac desktop (and the Windows key presses Ctrl), a
 viewer's Cmd presses Ctrl on a Linux desktop. To send each key as itself instead, turn
 off the toolbar's ⌘ button; each browser remembers its own choice.
 
-The toolbar shows when the pointer nears the top center (it stays at the bottom on touch
-devices). Its last button collapses it to a small tab there, which opens it again; each
+The toolbar shows when the pointer nears the top center (on touch devices it stays
+there). Its last button collapses it to a small tab there, which opens it again; each
 browser remembers that too.
 
 The toolbar's stats button (or `?stats` in the URL) shows the frame rate, bitrate and
