@@ -170,6 +170,7 @@ pub const kCGEventOtherMouseDragged: u32 = 27;
 pub const kCGMouseEventClickState: u32 = 1;
 pub const kCGMouseEventButtonNumber: u32 = 3;
 pub const kCGKeyboardEventAutorepeat: u32 = 8;
+pub const kCGKeyboardEventKeyboardType: u32 = 10;
 pub const kCGScrollWheelEventIsContinuous: u32 = 88;
 
 pub const kCGScrollEventUnitPixel: u32 = 0;
@@ -273,6 +274,12 @@ extern "C" {
     ) -> OSStatus;
 }
 pub const kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment: u32 = 1;
+
+#[link(name = "IOKit", kind = "framework")]
+extern "C" {
+    pub fn IOPMAssertionDeclareUserActivity(name: CFStringRef, ty: u32, id: *mut u32) -> i32;
+}
+pub const kIOPMUserActiveLocal: u32 = 0;
 
 #[link(name = "Carbon", kind = "framework")]
 extern "C" {
