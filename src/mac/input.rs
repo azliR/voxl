@@ -93,13 +93,18 @@ fn named(keysym: u32) -> Option<u16> {
     })
 }
 
+/// How often key presses tell the Mac a person is using it.
+const USER_ACTIVITY_EVERY: Duration = Duration::from_secs(5);
+
 /// Shift and Option as UCKeyTranslate modifier states (Carbon modifiers >> 8).
 const UC_SHIFT: u32 = 0x02;
 const UC_OPTION: u32 = 0x08;
 
-/// Character -> (virtual key, needs Shift, needs Option) for the current layout.
-fn layout_map() -> HashMap<char, (u16, bool, bool)> {
+/// Character -> (virtual key, needs Shift, needs Option) for the current layout, and
+/// the keyboard type the layout was read for.
+fn layout_map() -> (HashMap<char, (u16, bool, bool)>, i64) {
     let mut map = HashMap::new();
+    let mut kbd_type = 0;
     // Keyboard layout APIs must be called on the main thread.
     let ok = dispatch2::run_on_main(|_| unsafe {
         let src = TISCopyCurrentKeyboardLayoutInputSource();
@@ -113,6 +118,7 @@ fn layout_map() -> HashMap<char, (u16, bool, bool)> {
         }
         let layout = CFDataGetBytePtr(data);
         let kbd = LMGetKbdType() as u32;
+        kbd_type = kbd as i64;
         // Plain keys first, then Shift, Option, Shift+Option; the main block before
         // the keypad, so digits come from the number row.
         let keys: Vec<u16> = (0..65).chain(93..128).chain(65..93).collect();
@@ -152,13 +158,18 @@ fn layout_map() -> HashMap<char, (u16, bool, bool)> {
     if !ok {
         log::warn!("keyboard layout unavailable; typing characters as text");
     }
-    map
+    (map, kbd_type)
 }
 
 struct Injector {
     src: CGEventSourceRef,
     chars: HashMap<char, (u16, bool, bool)>,
+    /// The keyboard type `chars` was read for, set on every key event: the lock screen
+    /// reads keys by it, and the event source's own type is not the keyboard's.
+    kbd_type: i64,
     chars_at: Instant,
+    /// When the Mac was last told a person is using it (which wakes its display).
+    active_at: Option<Instant>,
     /// keysym -> (virtual key, extra flags it was pressed with).
     pressed: HashMap<u32, (u16, u64)>,
     /// Held modifier keysyms and their flags.
@@ -222,6 +233,9 @@ impl Injector {
             CGEventSetFlags(e, flags | NX_NONCOALSESCEDMASK);
             if repeat {
                 CGEventSetIntegerValueField(e, kCGKeyboardEventAutorepeat, 1);
+            }
+            if self.kbd_type != 0 {
+                CGEventSetIntegerValueField(e, kCGKeyboardEventKeyboardType, self.kbd_type);
             }
         }
         self.post(e);
@@ -343,7 +357,34 @@ impl Injector {
         }
     }
 
+    /// Synthetic keys don't count as someone at the Mac, so a key alone wouldn't wake
+    /// its display the way a click does.
+    fn declare_user_activity(&mut self) {
+        if self
+            .active_at
+            .is_some_and(|at| at.elapsed() < USER_ACTIVITY_EVERY)
+        {
+            return;
+        }
+        self.active_at = Some(Instant::now());
+        let name = objc2_core_foundation::CFString::from_static_str("voxl input");
+        let mut id = 0u32;
+        let status = unsafe {
+            IOPMAssertionDeclareUserActivity(
+                &*name as *const _ as CFStringRef,
+                kIOPMUserActiveLocal,
+                &mut id,
+            )
+        };
+        if status != 0 {
+            log::warn!("IOPMAssertionDeclareUserActivity failed: {status:#x}");
+        }
+    }
+
     fn key(&mut self, keysym: u32, down: bool) {
+        if down {
+            self.declare_user_activity();
+        }
         if let Some((kc, flag)) = modifier(keysym) {
             if down == self.mods.contains_key(&keysym) {
                 return;
@@ -391,7 +432,7 @@ impl Injector {
         };
         if self.chars_at.elapsed() > Duration::from_secs(3) {
             // Pick up layout switches.
-            self.chars = layout_map();
+            (self.chars, self.kbd_type) = layout_map();
             self.chars_at = Instant::now();
         }
         match self.chars.get(&c).copied() {
@@ -450,12 +491,17 @@ pub fn spawn(
     if src.is_null() {
         return Err("CGEventSourceCreate failed".into());
     }
-    let chars = layout_map();
-    log::info!("keyboard layout: {} characters", chars.len());
+    let (chars, kbd_type) = layout_map();
+    log::info!(
+        "keyboard layout: {} characters, keyboard type {kbd_type}",
+        chars.len()
+    );
     let mut inj = Injector {
         src,
         chars,
+        kbd_type,
         chars_at: Instant::now(),
+        active_at: None,
         pressed: HashMap::new(),
         mods: HashMap::new(),
         buttons: [false; 16],
