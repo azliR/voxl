@@ -137,6 +137,14 @@ export function setupPointer(app: App, zoom: Zoom, onInteract: () => void) {
 		if (e.pointerType === 'touch') touch.cancel(e);
 		else send(cmd.releaseAll);
 	});
+	// A release that lands elsewhere (the capture was lost) still ends the touch,
+	// or its finger would linger and turn the next scroll into a pinch.
+	for (const type of ['pointerup', 'pointercancel'] as const)
+		window.addEventListener(type, (e) => {
+			if (e.pointerType !== 'touch') return;
+			if (type === 'pointerup') touch.up(e);
+			else touch.cancel(e);
+		});
 	// The touch captures the pointer to the surface, so its other events come there.
 	pad.addEventListener('pointerdown', (e) => {
 		if (e.pointerType !== 'touch') return;

@@ -100,6 +100,8 @@ export function createTouch(app: App, hooks: Hooks) {
 	}
 
 	function down(e: PointerEvent) {
+		// The first finger of a new touch: any finger still tracked lost its release.
+		if (e.isPrimary && pts.size) forget();
 		try {
 			app.surface.setPointerCapture(e.pointerId);
 		} catch {}
@@ -209,10 +211,17 @@ export function createTouch(app: App, hooks: Hooks) {
 		if (pts.size === 0) mode = null;
 	}
 	function cancel(e: PointerEvent) {
+		if (!pts.delete(e.pointerId)) return;
 		clearTimeout(timer);
 		if (mode === 'drag') send(cmd.button(1, false));
-		pts.delete(e.pointerId);
 		mode = pts.size ? 'done' : null;
+	}
+	/** Drop every tracked finger, ending the gesture. */
+	function forget() {
+		clearTimeout(timer);
+		if (mode === 'drag') send(cmd.button(1, false));
+		pts.clear();
+		mode = null;
 	}
 	/** Switch trackpad mode on or off, ending a gesture in progress. */
 	function setTrackpad(on: boolean) {
