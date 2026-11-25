@@ -53,19 +53,12 @@ fn load(cert: &Path, key: &Path) -> Arc<rustls::ServerConfig> {
     Arc::new(config)
 }
 
-/// Where voxl keeps the certificate it makes: %LOCALAPPDATA%\voxl on Windows,
-/// $XDG_CONFIG_HOME/voxl or ~/.config/voxl elsewhere, or VOXL_TLS_DIR.
+/// Where voxl keeps the certificate it makes: VOXL_TLS_DIR, else voxl's config folder
+/// (%LOCALAPPDATA%\voxl on Windows, $XDG_CONFIG_HOME/voxl or ~/.config/voxl elsewhere).
 fn tls_dir() -> PathBuf {
-    if let Some(d) = std::env::var_os("VOXL_TLS_DIR") {
-        return d.into();
-    }
-    #[cfg(windows)]
-    let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
-    #[cfg(not(windows))]
-    let base = std::env::var_os("XDG_CONFIG_HOME")
+    std::env::var_os("VOXL_TLS_DIR")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")));
-    base.unwrap_or_else(|| PathBuf::from(".")).join("voxl")
+        .unwrap_or_else(crate::config::config_dir)
 }
 
 /// The kept self-signed certificate and key, as one PEM file in `dir`, made on first use.

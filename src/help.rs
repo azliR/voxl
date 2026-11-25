@@ -125,6 +125,14 @@ Files and recordings:
   --max-upload-mb               largest upload, 0 for no limit (default 0)
   --max-record-seconds          longest recording (default 300)
 
+Config file and starting at login:
+  Flags are read first from $VOXL_CONFIG, else ~/.config/voxl/voxl.conf
+  (%LOCALAPPDATA%\\voxl\\voxl.conf on Windows): one per line as on the command
+  line, # for comments. The command line wins over the file.
+  --install-autostart           start voxl with those flags whenever you log in
+                                (macOS), and again if it crashes
+  --uninstall-autostart         stop starting it at login
+
   -h, --help                    print this and exit
   -V, --version                 print the version and exit
 

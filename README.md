@@ -321,6 +321,28 @@ names; delete it to make a new one. Over HTTPS, open `https://`: a browser that 
 voxl --addr=0.0.0.0 --tls
 ```
 
+### Config file and starting at login
+
+The `voxl` binary reads flags from `~/.config/voxl/voxl.conf` (`%LOCALAPPDATA%\voxl\voxl.conf`
+on Windows, or the file `VOXL_CONFIG` names) before its command line, one per line as
+you'd type them, with `#` comments. Flags on the command line win over the file's.
+
+```sh
+# ~/.config/voxl/voxl.conf
+--addr=0.0.0.0
+--tls
+--preset superfast
+--audio-enabled=false
+```
+
+Keep `--basic-auth-password` out of it, or `chmod 600` the file. On macOS,
+`voxl --install-autostart` adds a launchd agent that starts voxl with that file whenever
+you log in, starts it again if it crashes, and logs to `~/Library/Logs/voxl.log`; after
+editing the file, `launchctl kickstart -k gui/$(id -u)/com.voxl` restarts it.
+`--uninstall-autostart` removes the agent. Started this way, voxl needs Screen Recording
+and Accessibility for itself rather than through a terminal, granted again whenever the
+binary is rebuilt.
+
 ## FAQ
 
 **Why a WebSocket and not WebRTC?** One WebSocket goes wherever a web page does: through

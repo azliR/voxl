@@ -7,8 +7,10 @@
 mod access;
 #[cfg(all(target_os = "linux", feature = "pulseaudio"))]
 mod audio;
+pub mod autostart;
 #[cfg(target_os = "linux")]
 mod capture;
+pub mod config;
 mod convert;
 #[cfg(target_os = "linux")]
 mod corners;
